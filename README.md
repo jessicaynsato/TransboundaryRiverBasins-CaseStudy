@@ -1,4 +1,4 @@
-This repository stores the R Markdown code of the following project:
+This repository stores the R Markdown code of the following project: [Report](https://jessicaynsato.github.io/assets/pages/CaseStudy-Basin.html)
 
 # Transboundary River Basins' Endemic Species
 ## **Introduction**
