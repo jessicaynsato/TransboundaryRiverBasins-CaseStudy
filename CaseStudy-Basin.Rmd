@@ -1,0 +1,529 @@
+---
+title: "Transboundary River Basins' Endemic Species"
+author: '[Jessica Sato](https://jessicaynsato.github.io/)'
+editor_options: 
+  markdown: 
+    wrap: sentence
+  chunk_output_type: inline
+output:
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
+  pdf_document:
+    toc: true
+---
+
+R Markdown notebook available at: [GitHub/TransboundaryRiverBasins-CaseStudy](https://github.com/jessicaynsato/TransboundaryRiverBasins-CaseStudy)
+
+## **Introduction**
+
+Transboundary river basins are important from both biodiversity and political perspectives.
+From a biodiversity standpoint, these ecosystems house a high diversity of species (Mason et al., 2020), many of which are 100% endemic[^1], occurring solely within that specific region (Blankespoor et al., 2025).
+Politically, they present a complex situation, as the area of the basin extends across more than one sovereign region.
+This means that both benefits and challenges must be shared among different nations, which can lead to disputes and neglect of the basins (Bakker & Duncan, 2016).
+
+[^1]: For simplicity, we will refer to species that are 100% endemic as *endemic species* throughout this project.
+
+Therefore, to ensure the sustainable management of basin resources and the preservation of their biodiversity, broad cooperation between nations is essential (Grey et al., 2009).
+In this project, we aim to explore the continental impact on these studies.
+By understanding the regional distribution of endemic species, we can contribute to guiding political efforts toward continent-specific collaboration.
+We will study how the distribution of endemic species varies across different continents.
+Two approaches will be used: one considering the absolute number of endemic species, and another considering the proportion of endemic species relative to the total number of species found in each basin.
+
+Additionally, given that many basins have not yet been fully mapped (Revenga & Tyrrell, 2016), it is also important to investigate whether it is possible to predict the number of endemic species expected in a basin based on its area and the continent in which it is located.
+
+Based on these considerations, we formulated the following research questions to better understand the distribution and predictability of endemic species in transboundary river basins:
+
+### **Research Questions**
+
+1.  Is there a difference in the quantity of endemic species found in a basin depending on its continent of origin?
+
+2.  Is there a difference in the proportion of endemic species compared to all species encountered in a basin depending on its continent of origin?
+
+3.  Is it possible to predict the number of endemic species found in a basin considering its area and continent?
+
+For answering them we will be using the following data set:
+
+### **Data set**
+
+-   **Provider**: World Bank
+
+-   **Name**: Species Richness and Count of Species at Risk in Transboundary River Basins
+
+-   **Group**: Global Biodiversity
+
+-   **Data File**: [`tfddbasins_species_summary_ddh.csv`](https://datacatalogfiles.worldbank.org/ddh-published/0066034/10/DR0094740/tfddbasins_species_summary_ddh.csv)
+
+-   **Data Dictionary**:
+
+    -   **Continent**: Continent of international river basin area [source: TFDD]
+
+    -   **Continent_Code**: Continent code of international river basin area [source: TFDD]
+
+    -   **Basin_Name**: International river TFDD basin name [source: TFDD]
+
+    -   **BCODE**: Four-letter TFDD basin code [source: TFDD]
+
+    -   **Area_km2**: Area of the river basin in kilometers squared (km²).
+        The area was calculated in ESRI ArcMap using the World Cylindrical Equal Area Projection.
+        [source: TFDD]
+
+    -   **Number of endemics at 100%**: Count of endemic species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+    -   **Number of total species**: Count of species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+    -   *(full original data set dictionary can be seen in the Appendices)*
+
+## **Data Preparation**
+
+This data set did not contain any null or duplicated values.
+In this project, we selected only 7 columns from the original data set and created a new one containing the proportion of endemic as observed below:
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	fig.align = "center",
+	fig.width = 12,
+	message = FALSE,
+	warning = FALSE,
+	out.width = "100%"
+)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(glue)
+library(here)
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(plotly)
+library(psych)
+library(PMCMRplus)
+library(fastDummies)
+library(DT)
+library(scales)
+library(knitr)
+library(kableExtra)
+library(tidyr)
+```
+
+```{r data-cleaning}
+# Clean the data set as needed
+
+df <- as.data.frame(read_csv(here("data", "tfddbasins_species_summary_ddh.csv"), 
+                             col_select = 
+                               c("Continent",
+                                 "Continent_Code",
+                                 "Basin_Name",
+                                 "BCODE",
+                                 "Endemic" = "Number of endemics at 100%",
+                                 "Total_species" = "Number of total species",
+                                 "Area"= "Area_km2")))
+
+df <- df[1:nrow(df)-1,] # remove last row
+
+# View(df)
+
+# correct types
+df$Continent <- as.factor(df$Continent)
+df$Continent_Code[is.na(df$Continent_Code)] <- "NA"
+df$Continent_Code <- as.factor(df$Continent_Code)
+df$Basin_Name <- as.character(df$Basin_Name)
+df$BCODE <- as.character(df$BCODE)
+df$Endemic <- as.numeric(df$Endemic)
+df$Total_species <- as.numeric(df$Total_species)
+df$Proportion_endemic <- df$Endemic / df$Total_species
+df$Area <- as.numeric(df$Area)
+
+dims = glue("Table dimention: {nrow(df)} rows and {length(df)} columns")
+
+# Null values
+if (sum(is.na(df)) == 0){
+  nans = "There is no missing values in the table"
+} else{
+  nans = "Handling missing values is requires"
+}
+
+if (sum(duplicated(df)) == 0){
+  dups = "There is no duplicated values in the table"
+} else{
+  dups = "Handling missing values is requires"
+}
+
+df %>%
+  mutate(Proportion_endemic = scales::percent(Proportion_endemic, accuracy = 0.01)) %>%
+  datatable(
+    options = list(pageLength = 8, scrollX = TRUE),
+    caption = "Transboundary River Basins'Endemic Species"
+  )
+
+# Summary and statistics
+print(dims, nans, dups)
+
+
+# Select only numeric columns
+numeric_df <- df %>% select(where(is.numeric))
+
+# Compute statistics
+data_statistics <- numeric_df %>%
+  summarise(
+    across(everything(), list(
+      mean = mean,
+      median = median,
+      sd = sd,
+      min = min,
+      q25 = ~quantile(.x, 0.25),
+      q75 = ~quantile(.x, 0.75),
+      max = max
+    ), .names = "{.col}:{.fn}")
+  ) %>%
+  pivot_longer(everything(),
+               names_to = c("Variable", "Statistic"),
+               names_sep = ":") %>%
+  pivot_wider(names_from = Statistic, values_from = value)
+
+# Display as a table
+kable(data_statistics, caption = "Summary Statistics by Variable", 
+      digits = 2, format.args = list(big.mark = ",")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "responsive"),
+    full_width = TRUE
+  ) 
+```
+
+## Data Exploration
+
+In the table and graphs below we have grouped all basins based on their continent of origin.
+In the data set, Europe has the most basins, but their average area is small and the number of endemic species found in it is also the smallest.
+However, they had the highest number of species documented, going above 1 million species.
+
+Africa and Asia had similar statistics.
+Both have around 60 basins each that sums around 18 million square kilometers of area in their respective continents.
+Their basins have an average of 200 endemic species and a little less than 7 thousand total species, making the proportion of endemic species close to 2%.
+
+Finally, in North and South America, we can observe the most number of endemic species per basin, 797 and 792 species per basin, respectively.
+North America has the highest number of endemic species in the data set, 39 thousand.
+South America follows in second with 30 thousand, but has higher proportion of endemic species, 3.78% against 2.98%.
+
+```{r data-summary}
+
+df_summary_continent <- df %>%
+  group_by(Continent) %>%
+  summarise(
+    Number_of_basins = n(),
+    Avg_area = mean(Area),
+    Total_area = sum(Area),
+    Avg_endemic = mean(Endemic),
+    Total_endemic = sum(Endemic),
+    Avg_species = mean(Total_species),
+    Total_species = sum(Total_species),
+    Avg_proportion = mean(Proportion_endemic)
+  )
+
+df_summary_continent %>%
+  select(-Continent) %>%
+  mutate(
+    Avg_proportion = scales::percent(Avg_proportion),
+    Total_endemic = scales::comma(Total_endemic),
+    Avg_endemic = scales::comma(Avg_endemic, accuracy = 1),
+    Total_species = scales::comma(Total_species),
+    Avg_species = scales::comma(Avg_species, accuracy = 1),
+    Total_area = scales::comma(Total_area),
+    Avg_area = scales::comma(Avg_area)
+  ) %>%
+  rename(
+    'Average proportion of endemic species in a basic' = Avg_proportion,
+    'Number of basins' = Number_of_basins,
+    'Total number of endemic species' = Total_endemic,
+    'Average number of endemic species in a basin' = Avg_endemic,
+    'Total species' = Total_species,
+    'Average number of species in a basin' = Avg_species,
+    'Total area of basins (Km2)' = Total_area,
+    'Average basin area (Km2)' = Avg_area
+  ) %>%
+  t() %>%
+  as.data.frame() %>%
+  kable(
+    col.names = c(c("Metric"), as.character(df_summary_continent$Continent)),
+    caption = "Data set summary by Continent",
+  )%>% 
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "responsive"),
+    full_width = TRUE
+  ) 
+```
+
+```{r edat-cat}
+# Bubble graph relating Area, Total and Endemic species of a basin
+df_summary_continent %>%
+  ggplot(aes(x = Avg_species, y = Avg_endemic, color = Continent)) +
+  geom_point(aes(size = Avg_area), alpha = .3) +
+  scale_size_continuous(range = c(5, 30))+
+  labs(title = "Comparision of basins by continent",
+       y = "Average number of endemic species",
+       x = "Average number of species",
+       size = "Average basin area (Km2)") +
+  ylim(100, 900)+
+  geom_text(aes(label = Continent), size = 4, vjust = -1) +
+  guides(color = "none") +
+  theme_minimal()
+```
+
+To better understand the proportion of endemic species in a continent, the boxplot below shows the spread of the proportion of endemic species of each basin grouped by the continent of origin.
+In the graph, we observe that the basins with the highest proportion of endemic species in a basin are localized in South America and North America.
+Europe has the lowest proportion of endemic species in its basins.
+
+```{r eda-cat-scalar}
+# Boxplot of endemic proportion per Continent
+plot_prop <- df %>%
+  ggplot(aes(x = Continent, y = Proportion_endemic, fill = Continent)) +
+  geom_boxplot(outlier.size = 0, size = 0.2) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(title = "Proportion of endemic species by Continent",
+       y = "Proportion") +
+  theme_minimal()
+
+ggplotly(plot_prop)
+```
+
+Finally, the graph below shows the comparison of a basin area and the number of endemic species in it.
+The log10 to scale was used to better visualize the relationship.
+We observed a strong positive relationship between the two variables.
+Additionally, a pearson correlation test was performed and showed a significant positive linear relationship between the two variables, *r* = 0.64, *p* \< .01.
+
+```{r eda-scalar}
+# Plot Area x Endemic species using log10 scale
+plot_end_area <- df %>%
+  ggplot(aes(x = Area, y = Endemic, color = Continent)) +
+  geom_point() +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title = "Basin's area x Number of endemic species",
+       subtitle = "Using log10",
+       x = "Area in Km2",
+       y = "Number of endemic species") +
+  theme(legend.position = "bottom") +
+  theme_minimal()
+
+plot_end_area
+
+# correlation test
+correlation = cor.test(df$Area, df$Endemic)
+```
+
+## Statistical Analysis
+
+Each research question was addressed using a corresponding statistical test.
+
+### Question 1:
+
+1.  Is there a difference in the quantity of endemic species found in a basin depending on its continent of origin?
+
+    -   A Kruskal-Wallis rank sum test was performed to compare the number of endemic species in a basin across different continents.
+        Outliers were retained in the analysis, as their removal would result in a loss of approximately 30% of the data.
+        There was no significant difference in the number of endemic species between different continents, *χ*2(4) = 6.33, *p* = .18.
+
+```{r stat-tests-1, results='hide'}
+# Non parametric 1-way BG ANOVA
+kruskal.test(Endemic ~ Continent, data = df)
+
+# Results
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  Endemic by Continent
+# Kruskal-Wallis chi-squared = 6.3273, df = 4, p-value = 0.176
+```
+
+### Question 2:
+
+2.  Is there a difference in the proportion of endemic species compared to all species encountered in a basin depending on its continent of origin?
+    -   A Kruskal-Wallis rank sum test was performed to compare the proportion of endemic species compared to the total amount of species in a basin across different continents. Outliers were retained in the analysis, as their removal would result in a loss of approximately 30% of the data. There was a significant difference in the proportion of endemic species between different continents,  *χ*2(4) = 638.09, *p* \< .01. There was no significant difference in the proportion of endemic species found in Africa (*Mdn* = 0.0097), Asia (*Mdn* = 0.0135), North America (*Mdn* = 0.0055), and South America (*Mdn* = 0.0169), *ps* \> .99. Europe (*Mdn* = 0.0019) had a significantly smaller proportion of endemic species compared to all other continents, *p*s \< .01.
+
+```{r stat-tests-2, results='hide'}
+# Non parametric 1-way BG ANOVA
+kruskal.test(Proportion_endemic ~ Continent, data = df)
+# Results
+# 	Kruskal-Wallis rank sum test
+# 
+# data:  Proportion_endemic by Continent
+# Kruskal-Wallis chi-squared = 38.085, df = 4, p-value = 1.076e-07
+
+# Post-Hoc
+kwAllPairsDunnTest(Proportion_endemic ~ Continent, data = df, dist = "Tukey")
+# Results:
+# Warning :Ties are present. z-quantiles were corrected for ties.
+# 
+# 	Pairwise comparisons using Dunn's all-pairs test
+# 
+# data: Proportion_endemic by Continent
+#               Africa  Asia    Europe  North America
+# Asia          1.00000 -       -       -            
+# Europe        3.4e-06 9.0e-05 -       -            
+# North America 1.00000 1.00000 0.00076 -            
+# South America 1.00000 1.00000 8.4e-05 1.00000      
+# P value adjustment method: holm
+# alternative hypothesis: two.sided
+
+median(df$Proportion_endemic[df$Continent=="Africa"])
+median(df$Proportion_endemic[df$Continent=="Asia"])
+median(df$Proportion_endemic[df$Continent=="North America"])
+median(df$Proportion_endemic[df$Continent=="South America"])
+median(df$Proportion_endemic[df$Continent=="Europe"])
+```
+
+### Question 3:
+
+3.  Is it possible to predict the number of endemic species found in a basin considering its area and continent?
+    -   A multiple linear regression analysis was performed to determine whether the number of endemic species in a basin could be predicted from the continent of origin and the area of the basin. Continent was dummy coded as 4 indicator variables, Continent_Africa, Continent_Asia, 'Continent_North America', and 'Continent_South America' which were entered into the regression model along with the basin area in square kilometers as predictors[^2].
+
+        Area, 'Continent_North America', and 'Continent_South America' were both significant predictors for the number of endemic species, *p* \< .01, however Continent_Africa and Continent_Asia were not, *p* = .17 and p = .23, respectively.
+
+        After removing Continent_Africa and Continent_Asia from the model, the predicted number of endemic species was equal to 0.0012(Area) - 646.2('Continent_North America') + 515.0('Continent_South America') - 65.12, where Area represents the basin area in square kilometers and 'Continent_North America' and 'Continent_South America' represent if the basin is located in North America or South America(0 = no, 1 = yes), respectively. The final model accounted for 46% (adjusted r² = .45) of the variance in the number of endemic species found in a basin, F(3, 306) = 86.12, p \< .01.
+
+[^2]: The European continent was used as a reference level considering its distinct behavior in the previous test and because it reported the lowest average number of endemic species per basin.
+
+```{r stat-tests-3, results='hide'}
+# Regression
+my_df <- subset(df, select = c('Endemic', 'Area', 'Continent'))
+
+target = "Endemic"
+cat_var = "Continent"
+equation <- Endemic ~ .
+
+my_df$Continent <- as.factor(df$Continent)
+my_df <- dummy_cols(my_df)
+head(my_df)
+
+my_df <- subset(my_df, select = -c(Continent_Europe, Continent))
+model <- lm(equation, data = my_df)
+summary(model)
+# Results
+# Call:
+# lm(formula = equation, data = my_df)
+# 
+# Residuals:
+#     Min      1Q  Median      3Q     Max 
+# -3444.7  -344.5     5.7   153.5  6528.0 
+# 
+# Coefficients:
+#                             Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)                4.211e+01  9.261e+01   0.455 0.649672    
+# Area                       1.223e-03  8.096e-05  15.108  < 2e-16 ***
+# Continent_Africa          -1.946e+02  1.404e+02  -1.386 0.166795    
+# Continent_Asia            -1.703e+02  1.422e+02  -1.197 0.232067    
+# `Continent_North America`  5.359e+02  1.548e+02   3.461 0.000615 ***
+# `Continent_South America`  4.029e+02  1.692e+02   2.381 0.017886 *  
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 867.1 on 304 degrees of freedom
+# Multiple R-squared:  0.4619,	Adjusted R-squared:  0.4531 
+# F-statistic:  52.2 on 5 and 304 DF,  p-value: < 2.2e-16
+
+
+equation <- Endemic ~ Area + `Continent_North America` + `Continent_South America`
+model <- lm(equation, data = my_df)
+summary(model)
+# Results
+# Call:
+# lm(formula = equation, data = my_df)
+# 
+# Residuals:
+#     Min      1Q  Median      3Q     Max 
+# -3468.2  -349.4    62.9   112.7  6574.8 
+# 
+# Coefficients:
+#                             Estimate Std. Error t value Pr(>|t|)    
+# (Intercept)               -6.512e+01  6.019e+01  -1.082 0.280122    
+# Area                       1.206e-03  8.020e-05  15.035  < 2e-16 ***
+# `Continent_North America`  6.462e+02  1.369e+02   4.720 3.59e-06 ***
+# `Continent_South America`  5.150e+02  1.524e+02   3.379 0.000823 ***
+# ---
+# Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 867.6 on 306 degrees of freedom
+# Multiple R-squared:  0.4578,	Adjusted R-squared:  0.4525 
+# F-statistic: 86.12 on 3 and 306 DF,  p-value: < 2.2e-16
+```
+
+## Conclusion
+
+The results of this study indicate that, although it is possible to predict the number of endemic species found in a basin based on its area and continent, the continental aspect is not fully significant.
+The location of a basin was not a significant predictor when comparing Asia and Africa to Europe.
+Additionally, the number of endemic species found in a basin appears to be independent of the continent in which it is located, and the proportion of endemic species relative to total basin diversity is only significantly different when the basin is located in Europe.
+
+On one hand, this could suggest better opportunities for global collaboration and information exchange, given that basins do not differ significantly across continents considering the variables studied.
+On the other hand, this level of grouping was not sufficient to capture enough individual characteristics to effectively guide political efforts for the preservation of these ecosystems.
+
+### Future research
+
+Possible next steps include exploring new or more granular types of grouping.
+For example, comparing similar biomes across different continents.
+Another way to expand this research is to include Oceania, as this continent was not represented in the data set.
+
+Finally, it is important to note that only a few columns of the data set were explored.
+Further studies could incorporate information on species with small occurrence regions, species with high extinction threat probabilities, or combinations of these factors.
+
+## Appendices
+
+Data set dictionary:
+
+-   **Continent**: Continent of international river basin area [source: TFDD]
+
+-   **Continent_Code**: Continent code of international river basin area [source: TFDD]
+
+-   **Basin_Name**: International river TFDD basin name [source: TFDD]
+
+-   **BCODE**: Four-letter TFDD basin code [source: TFDD]
+
+-   **Area_km2**: Area of the river basin in kilometers squared (km²).
+    The area was calculated in ESRI ArcMap using the World Cylindrical Equal Area Projection.
+    [source: TFDD]
+
+-   **Number of endemics at 100%**: Count of endemic species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of species with small occurrence regions (50x50)**: Count of small area (50 km² x 50 km²) species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of species with extinction threat probability ≥ 80**: Count of species occurrence region(s) with greater than or equal to 80 extinction threat probability [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of endemic species with small occurrence regions (50x50)**: Count of endemic small area (50 km² x 50 km²) species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of species with small occurrence regions (50x50) and extinction threat probability ≥ 80**: Count of small area (50 km² x 50 km²) species occurrence region(s) with greater than or equal to 80 extinction threat probability [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of endemic species with extinction threat probability ≥ 80**: Count of endemic species occurrence region(s) with greater than or equal to 80 extinction threat probability [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of endemic species with small occurrence regions (50x50) and extinction threat probability ≥ 80**: Count of endemic small area (50 km² x 50 km²) species occurrence region(s) with greater than or equal to 80 extinction threat probability [source: Dasgupta et al. 2024 a,b]
+
+-   **Number of total species**: Count of species occurrence region(s) [source: Dasgupta et al. 2024 a,b]
+
+## References
+
+Bakker, M. H., & Duncan, J. A.
+(2017).
+Future bottlenecks in international river basins: where transboundary institutions, population growth and hydrological variability intersect.
+*Water International*, *42*(4), 400–424.
+<https://doi.org/10.1080/02508060.2017.1331412>
+
+Blankespoor, B., Dasgupta, S., & Wheeler, D.
+(2025). 
+*Bridging Conflicts and Biodiversity Protection*.
+World Bank.
+
+Grey, D., Sadoff, C., & Connors, G.
+(2009).
+Effective Cooperation on Transboundary Waters: A Practical perspective.
+In *Uses of International Watercourses*.
+<https://documents1.worldbank.org/curated/en/903741468000592558/pdf/103882-WP-0907-Effective-Cooperation-Final-to-Press-PUBLIC.pdf>
+
+Mason, N., Ward, M., Watson, J. E. M., Venter, O., & Runting, R. K.
+(2020).
+Global opportunities and challenges for transboundary conservation.
+*Nature Ecology & Evolution*, *4*(5), 694–701.
+<https://doi.org/10.1038/s41559-020-1160-3>
+
+Revenga, C., & Tyrrell, T.
+(2016).
+Major river basins of the world.
+In *Springer eBooks* (pp. 1–16).
+<https://doi.org/10.1007/978-94-007-6173-5_211-3>
