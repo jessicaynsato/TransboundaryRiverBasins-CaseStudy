@@ -320,9 +320,7 @@ Each research question was addressed using a corresponding statistical test.
 
 1.  Is there a difference in the quantity of endemic species found in a basin depending on its continent of origin?
 
-    -   A Kruskal-Wallis rank sum test was performed to compare the number of endemic species in a basin across different continents.
-        Outliers were retained in the analysis, as their removal would result in a loss of approximately 30% of the data.
-        There was no significant difference in the number of endemic species between different continents, *χ*2(4) = 6.33, *p* = .18.
+    -   A Kruskal-Wallis rank sum test was performed to compare the number of endemic species in a basin across different continents. Outliers were retained in the analysis, as their removal would result in a loss of approximately 30% of the data. There was no significant difference in the number of endemic species between different continents, *χ*2(4) = 6.33, *p* = .18.
 
 ```{r stat-tests-1, results='hide'}
 # Non parametric 1-way BG ANOVA
@@ -375,11 +373,13 @@ median(df$Proportion_endemic[df$Continent=="Europe"])
 ### Question 3:
 
 3.  Is it possible to predict the number of endemic species found in a basin considering its area and continent?
-    -   A multiple linear regression analysis was performed to determine whether the number of endemic species in a basin could be predicted from the continent of origin and the area of the basin. Continent was dummy coded as 4 indicator variables, Continent_Africa, Continent_Asia, 'Continent_North America', and 'Continent_South America' which were entered into the regression model along with the basin area in square kilometers as predictors[^2].
+    -   A multiple linear regression analysis was performed to determine whether the number of endemic species in a basin could be predicted from the continent of origin and the area of the basin.
+        Continent was dummy coded as 4 indicator variables, Continent_Africa, Continent_Asia, 'Continent_North America', and 'Continent_South America' which were entered into the regression model along with the basin area in square kilometers as predictors[^2].
 
-        Area, 'Continent_North America', and 'Continent_South America' were both significant predictors for the number of endemic species, *p* \< .01, however Continent_Africa and Continent_Asia were not, *p* = .17 and p = .23, respectively.
+        Area, 'Continent_North America', and 'Continent_South America' were both significant predictors for the number of endemic species, *p* \< .01, however Continent_Africa and Continent_Asia were not, *p* = .17 and *p* = .23, respectively.
 
-        After removing Continent_Africa and Continent_Asia from the model, the predicted number of endemic species was equal to 0.0012(Area) - 646.2('Continent_North America') + 515.0('Continent_South America') - 65.12, where Area represents the basin area in square kilometers and 'Continent_North America' and 'Continent_South America' represent if the basin is located in North America or South America(0 = no, 1 = yes), respectively. The final model accounted for 46% (adjusted r² = .45) of the variance in the number of endemic species found in a basin, F(3, 306) = 86.12, p \< .01.
+        After removing Continent_Africa and Continent_Asia from the model, the predicted number of endemic species was equal to 0.0012(Area) - 646.2('Continent_North America') + 515.0('Continent_South America') - 65.12, where Area represents the basin area in square kilometers and 'Continent_North America' and 'Continent_South America' represent if the basin is located in North America or South America (0 = no, 1 = yes), respectively.
+        The final model accounted for 46% (adjusted *r*² = .45) of the variance in the number of endemic species found in a basin, *F*(3, 306) = 86.12, *p* \< .01.
 
 [^2]: The European continent was used as a reference level considering its distinct behavior in the previous test and because it reported the lowest average number of endemic species per basin.
 
